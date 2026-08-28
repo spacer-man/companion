@@ -1,0 +1,17 @@
+[project]
+name = "companion-core"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "spacer", email = "f-balykin@mail.ru" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "openai>=3.5.0",
+    "pydantic>=2.13.4",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.13.0"]
+build-backend = "uv_build"

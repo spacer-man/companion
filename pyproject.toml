@@ -1,0 +1,29 @@
+[project]
+name = "companion"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "spacer", email = "f-balykin@mail.ru" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "companion-core",
+    "faststream[rabbit]>=0.7.5",
+    "pydantic>=2.13.4",
+]
+
+[project.scripts]
+companion = "companion:main"
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.uv.workspace]
+members = [
+    "companion-core",
+]
+
+[tool.uv.sources]
+companion-core = { workspace = true }
