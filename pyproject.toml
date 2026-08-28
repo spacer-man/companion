@@ -8,9 +8,12 @@ authors = [
 ]
 requires-python = ">=3.14"
 dependencies = [
+    "aiogram>=3.31.0",
+    "aiohttp-socks>=0.12.0",
     "companion-core",
     "faststream[rabbit]>=0.7.5",
     "pydantic>=2.13.4",
+    "pydantic-settings>=2.15.0",
 ]
 
 [project.scripts]
