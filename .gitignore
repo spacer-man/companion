@@ -11,3 +11,6 @@ wheels/
 
 # Environment files
 .env
+
+# STT model files
+stt/models/

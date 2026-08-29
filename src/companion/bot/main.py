@@ -7,6 +7,7 @@ from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
 from aiogram.types import BotCommand, BotCommandScopeChat
 from companion_core import LLM, Agent, tool
+from faster_whisper import WhisperModel
 
 from companion.bot.amc import AiogramAMC
 from companion.bot.config import Config
@@ -49,7 +50,18 @@ async def run() -> None:
         default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN),
     )
 
-    aiogram_amc = AiogramAMC(bot=bot)
+    await config.stt_models_dir.mkdir(parents=True, exist_ok=True)
+
+    whisper_model = WhisperModel(
+        model_size_or_path=config.stt_model_size,
+        download_root=config.stt_models_dir.as_posix(),
+        device=config.stt_device,
+    )
+
+    aiogram_amc = AiogramAMC(
+        bot=bot,
+        whisper_model=whisper_model,
+    )
 
     dp = Dispatcher(agent=agent, ctx=context, amc=aiogram_amc)
 

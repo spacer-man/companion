@@ -10,9 +10,10 @@ from typing import Any, Literal, TypeVar
 
 import pyvips
 from aiogram import Bot
-from aiogram.types import Downloadable
+from aiogram.types import Audio, Document, PhotoSize, Sticker, Voice
 from aiogram.types import Message as AiogramMessage
 from companion_core.types import AnyMessage, Message
+from faster_whisper import WhisperModel
 
 log = logging.getLogger(__name__)
 
@@ -53,10 +54,11 @@ class AgentMessageComposer[OriginalMessage](ABC):
 class AiogramAMC(AgentMessageComposer[AiogramMessage]):
     """The aiogram Agent message composer implementation."""
 
-    def __init__(self, bot: Bot) -> None:
+    def __init__(self, bot: Bot, whisper_model: WhisperModel | None = None) -> None:
         self._bot = bot
+        self._whisper_model = whisper_model
 
-    async def _pool_image(self, image: Downloadable) -> str:
+    async def _pull_image(self, image: PhotoSize | Sticker | Document) -> str:
         """Download image and return url with it encoded to base64."""
         log.debug(f"Poolling image: {image!r}")
         image_data = BytesIO()
@@ -83,6 +85,26 @@ class AiogramAMC(AgentMessageComposer[AiogramMessage]):
         log.debug(f"Result base64 image url: {image_url[:40]!r}")
         return image_url
 
+    async def _pull_audio(self, audio: Audio | Voice | Document) -> str | None:
+        audio_data = BytesIO()
+        await self._bot.download(file=audio, destination=audio_data)
+
+        if not self._whisper_model:
+            return None
+
+        segments, _info = self._whisper_model.transcribe(
+            audio=audio_data,
+            multilingual=True,
+            vad_filter=True,
+        )
+
+        transcribed = "".join(segment.text for segment in segments)
+        transcribed_debug = "|".join(segment.text for segment in segments)
+        log.debug(f"Transcribed token: {next(iter(segments), None)!r}")
+        log.debug(f"Transcribed: {transcribed_debug!r}")
+
+        return transcribed
+
     async def compose(
         self,
         message: AiogramMessage,
@@ -92,6 +114,11 @@ class AiogramAMC(AgentMessageComposer[AiogramMessage]):
         content_data: dict[str, Any] = {
             "id": message.message_id,
             "text": message.text or message.caption,
+            "audio": (
+                await self._pull_audio(audio)
+                if (audio := message.audio or message.voice)
+                else None
+            ),
             "type": "sticker" if message.sticker else None,
             "date": message.date.strftime(DATETIME_STRING_FORMAT),
             "author": (
@@ -108,12 +135,12 @@ class AiogramAMC(AgentMessageComposer[AiogramMessage]):
         images: list[str] = []
 
         if message.photo:
-            images.append(await self._pool_image(message.photo[0]))
+            images.append(await self._pull_image(message.photo[0]))
         elif message.sticker and not message.sticker.is_animated:
             if message.sticker.thumbnail:
-                images.append(await self._pool_image(message.sticker.thumbnail))
+                images.append(await self._pull_image(message.sticker.thumbnail))
             else:
-                images.append(await self._pool_image(message.sticker))
+                images.append(await self._pull_image(message.sticker))
         elif (  # If message has a image document
             message.document
             and message.document.file_name
@@ -122,7 +149,7 @@ class AiogramAMC(AgentMessageComposer[AiogramMessage]):
                 for extention in IMAGE_FILE_EXTENTIONS
             )
         ):
-            images.append(await self._pool_image(message.document))
+            images.append(await self._pull_image(message.document))
 
         # ====== Compose all to a message ======
         return Message(
