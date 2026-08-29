@@ -35,16 +35,16 @@ class LLM:
     ) -> Iterable[ChatCompletionMessageParam]:
         def messages_dumped_generator():
             for message in messages:
-                if message.role == "user":
+                input_images: list[str] | None = getattr(message, "images", None)
+                if input_images:
                     content = []
                     if message.content:
                         content.append({"type": "text", "text": message.content})
-                    input_images: list[str] | None = getattr(message, "images", None)
-                    for image in input_images or []:
+                    for image in input_images:
                         content.append({"type": "image_url", "image_url": image})
-                    yield {"role": message.role, "content": content}
                 else:
-                    yield {"role": message.role, "content": message.content}
+                    content = message.content
+                yield {"role": message.role, "content": content}
 
         return messages_dumped_generator()
 
