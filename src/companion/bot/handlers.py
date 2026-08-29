@@ -1,9 +1,11 @@
 import asyncio
+import base64
 import logging
 from collections import defaultdict
+from io import BytesIO
 
-from aiogram import F, Router
-from aiogram.filters import Command
+from aiogram import Bot, F, Router
+from aiogram.filters import Command, or_f
 from aiogram.types import (
     Message,
 )
@@ -62,20 +64,35 @@ async def set_think_level(message: Message, ctx: BotContext) -> None:
     await alert.delete()
 
 
-@router.message(F.text)
-async def handler(message: Message, agent: Agent, ctx: BotContext) -> None:
-    async for completions in agent.astream(
-        messages=db[message.chat.id] + [UserMessage(content=message.text)],
+@router.message(or_f(F.text, F.photo))
+async def handler(message: Message, bot: Bot, agent: Agent, ctx: BotContext) -> None:
+    user_message = UserMessage(content=message.text or message.caption)
+    if message.photo:
+        photo_size = message.photo[-1]
+        photo_data = BytesIO()
+        photo_file, _ = await asyncio.gather(
+            bot.get_file(file_id=photo_size.file_id),
+            bot.download(file=photo_size, destination=photo_data),
+        )
+
+        # Encode to base64
+        image_base64 = base64.b64encode(photo_data.getvalue()).decode("utf-8")
+        file_extention = (
+            photo_file.file_path.split(".")[-1].lower()
+            if photo_file.file_path
+            else "jpg"
+        )
+        user_message.images = [f"data:image/{file_extention};base64,{image_base64}"]
+
+    completions = await agent.ainvoke(
+        messages=db[message.chat.id] + [user_message],
         model=ctx.llm_model,
-        stream_content=False,
         reasoning_effort=ctx.llm_reasoning_effort,
         tools=ctx.agent_tools,
-    ):
-        completion = completions[-1]
-        if (
-            message_text := completion.message.content
-        ) and completion.message.role == "assistant":
-            await message.answer(text=message_text)
+    )
 
     for completion in completions:
         db[message.chat.id].append(completion.message)
+
+    if message_text := completions[-1].message.content:
+        await message.answer(text=message_text)
