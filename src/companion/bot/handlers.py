@@ -1,6 +1,8 @@
 import asyncio
+import json
 import logging
 from collections import defaultdict
+from typing import Any
 
 from aiogram import Router
 from aiogram.filters import Command
@@ -50,8 +52,9 @@ async def set_think_level(message: Message, ctx: BotContext) -> None:
         return
 
     elif len(params) == 0:
+        llm_reasoning_effort = ctx.config.llm_reasoning_effort
         await message.answer(
-            text=f"The current think level is equal to '{ctx.llm_reasoning_effort}'"
+            text=f"The current think level is equal to '{llm_reasoning_effort}'"
         )
         return
 
@@ -64,7 +67,7 @@ async def set_think_level(message: Message, ctx: BotContext) -> None:
         await alert.delete()
         return
 
-    ctx.llm_reasoning_effort = level
+    ctx.config.llm_reasoning_effort = level
     alert = await message.answer(text=f"The think level was setted to '{level}'")
     await asyncio.sleep(3)
     await alert.delete()
@@ -80,10 +83,17 @@ async def handler(
 ) -> None:
     user_message = await amc.compose(message=message, role="user")
 
+    if ctx.config.reply_transcribed_audio and user_message.content:
+        message_content: dict[str, Any] = json.loads(user_message.content)
+        transcribed_audio: str | None = message_content.get("audio")
+        if transcribed_audio:
+            escaped_audio = transcribed_audio.replace("`", r"\`")
+            await message.reply(text=f"\\[Transcribed audio\\]:\n```{escaped_audio}```")
+
     completions = await agent.ainvoke(
         messages=db[message.chat.id] + [user_message],
-        model=ctx.llm_model,
-        reasoning_effort=ctx.llm_reasoning_effort,
+        model=ctx.config.llm_model,
+        reasoning_effort=ctx.config.llm_reasoning_effort,
         tools=ctx.agent_tools,
     )
 

@@ -19,6 +19,7 @@ class Config(BaseSettings):
     tg_bot_proxy: SecretStr | None = None
     llm_model: str = "qwen3.5:4b"
     llm_reasoning_effort: Literal["none", "low", "high", "max"] | None = None
+    reply_transcribed_audio: bool = True
     stt_model_size: Literal["small", "medium", "large"] = "medium"
     stt_models_dir: Path = Path("stt/models")
     stt_device: Literal["auto", "cpu", "gpu"] = "auto"

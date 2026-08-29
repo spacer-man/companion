@@ -33,8 +33,7 @@ async def run() -> None:
     )
 
     context = BotContext(
-        llm_model=config.llm_model,
-        llm_reasoning_effort=config.llm_reasoning_effort,
+        config=config,
         agent_tools=[get_weather],
     )
 

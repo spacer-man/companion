@@ -98,10 +98,7 @@ class AiogramAMC(AgentMessageComposer[AiogramMessage]):
             vad_filter=True,
         )
 
-        transcribed = "".join(segment.text for segment in segments)
-        transcribed_debug = "|".join(segment.text for segment in segments)
-        log.debug(f"Transcribed token: {next(iter(segments), None)!r}")
-        log.debug(f"Transcribed: {transcribed_debug!r}")
+        transcribed = "".join(segment.text for segment in segments).strip()
 
         return transcribed
 

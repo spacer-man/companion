@@ -1,11 +1,11 @@
 from dataclasses import dataclass
-from typing import Literal
 
 from companion_core import FuncTool
+
+from companion.bot.config import Config
 
 
 @dataclass
 class BotContext:
-    llm_model: str
-    llm_reasoning_effort: Literal["none", "low", "high", "max"] | None = None
+    config: Config
     agent_tools: list[FuncTool] | None = None
