@@ -11,6 +11,7 @@ from companion_core import Agent, AnyMessage, SystemMessage
 
 from companion.bot.amc import AgentMessageComposer
 from companion.bot.types import BotContext
+from companion.bot.utils import wrap_chat_action
 
 log = logging.getLogger(__name__)
 
@@ -70,6 +71,7 @@ async def set_think_level(message: Message, ctx: BotContext) -> None:
 
 
 @router.message()
+@wrap_chat_action()
 async def handler(
     message: Message,
     agent: Agent,
