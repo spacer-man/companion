@@ -15,6 +15,8 @@ class Message(BaseModel):
 
 class UserMessage(Message):
     role: str = "user"
+    images: list[str] | None = None
+    """Images decoded to base64."""
 
 
 class SystemMessage(Message):

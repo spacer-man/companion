@@ -7,7 +7,6 @@ from companion_core.tools import FuncTool, ToolManager
 from companion_core.types import (
     AnyMessage,
     Completion,
-    Message,
     ToolCall,
     ToolCallError,
     ToolMessage,
@@ -50,7 +49,7 @@ class Agent:
 
     async def ainvoke(
         self,
-        messages: Iterable[Message],
+        messages: Iterable[AnyMessage],
         model: str,
         reasoning_effort: Literal["none", "low", "high", "max"] | None = None,
         tools: Iterable[FuncTool] | None = None,
@@ -88,7 +87,7 @@ class Agent:
 
     async def astream(
         self,
-        messages: Iterable[Message],
+        messages: Iterable[AnyMessage],
         model: str,
         stream_content: bool = False,
         reasoning_effort: Literal["none", "low", "high", "max"] | None = None,

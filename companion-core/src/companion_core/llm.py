@@ -13,8 +13,8 @@ from openai.types.chat import (
 from companion_core.tools import FuncTool
 from companion_core.types import (
     AiMessage,
+    AnyMessage,
     Completion,
-    Message,
     ToolCall,
     ToolFunction,
 )
@@ -30,10 +30,23 @@ class LLM:
 
     def _dump_messages(
         self,
-        messages: Iterable[Message],
+        messages: Iterable[AnyMessage],
         /,
     ) -> Iterable[ChatCompletionMessageParam]:
-        return (m.model_dump(mode="json") for m in messages)
+        def messages_dumped_generator():
+            for message in messages:
+                if message.role == "user":
+                    content = []
+                    if message.content:
+                        content.append({"type": "text", "text": message.content})
+                    input_images: list[str] | None = getattr(message, "images", None)
+                    for image in input_images or []:
+                        content.append({"type": "image_url", "image_url": image})
+                    yield {"role": message.role, "content": content}
+                else:
+                    yield {"role": message.role, "content": message.content}
+
+        return messages_dumped_generator()
 
     def _extract_tool_shemas(
         self,
@@ -66,7 +79,7 @@ class LLM:
 
     async def ainvoke(
         self,
-        messages: Iterable[Message],
+        messages: Iterable[AnyMessage],
         model: str,
         reasoning_effort: Literal["none", "low", "high", "max"] | None = None,
         tools: Iterable[FuncTool] | None = None,
@@ -89,7 +102,7 @@ class LLM:
 
     async def astream(
         self,
-        messages: Iterable[Message],
+        messages: Iterable[AnyMessage],
         model: str,
         reasoning_effort: Literal["none", "low", "high", "max"] | None = None,
         tools: Iterable[FuncTool] | None = None,
