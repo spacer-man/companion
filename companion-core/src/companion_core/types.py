@@ -1,7 +1,7 @@
 import json
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ToolCallError(Exception):
@@ -9,28 +9,39 @@ class ToolCallError(Exception):
 
 
 class Message(BaseModel):
-    role: str = Field(init=False)
+    role: str = Field(frozen=True)
     content: str | None
+
+    model_config = ConfigDict(extra="allow")
 
 
 class UserMessage(Message):
-    role: str = "user"
+    role: Literal["user"] = Field("user", init=False, frozen=True)
     images: list[str] | None = None
     """Images decoded to base64."""
 
+    model_config = ConfigDict(extra="ignore")
+
 
 class SystemMessage(Message):
-    role: str = "system"
+    role: Literal["system"] = Field("system", init=False, frozen=True)
+
+    model_config = ConfigDict(extra="ignore")
 
 
 class AiMessage(Message):
-    role: str = "assistant"
+    role: Literal["assistant"] = Field("assistant", init=False, frozen=True)
+    images: list[str] | None = None
     reasoning: str | None = None
     tool_calls: list[ToolCall] | None = None
 
+    model_config = ConfigDict(extra="ignore")
+
 
 class ToolMessage(Message):
-    role: str = "tool"
+    role: Literal["tool"] = Field("tool", init=False, frozen=True)
+
+    model_config = ConfigDict(extra="ignore")
 
 
 class ToolFunction(BaseModel):
