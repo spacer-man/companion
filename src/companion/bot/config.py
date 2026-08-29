@@ -2,7 +2,7 @@ import logging
 from collections import defaultdict
 from typing import Literal
 
-from companion_core.types import AnyMessage
+from companion_core import AnyMessage
 from pydantic import Secret, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 

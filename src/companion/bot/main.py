@@ -8,6 +8,7 @@ from aiogram.enums import ParseMode
 from aiogram.types import BotCommand, BotCommandScopeChat
 from companion_core import LLM, Agent, tool
 
+from companion.bot.amc import AiogramAMC
 from companion.bot.config import Config
 from companion.bot.handlers import router
 from companion.bot.types import BotContext
@@ -47,7 +48,10 @@ async def run() -> None:
         session=bot_session,
         default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN),
     )
-    dp = Dispatcher(agent=agent, ctx=context)
+
+    aiogram_amc = AiogramAMC(bot=bot)
+
+    dp = Dispatcher(agent=agent, ctx=context, amc=aiogram_amc)
 
     await bot.set_my_commands(
         commands=[

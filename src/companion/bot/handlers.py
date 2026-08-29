@@ -1,23 +1,28 @@
 import asyncio
-import base64
 import logging
 from collections import defaultdict
-from io import BytesIO
 
-from aiogram import Bot, F, Router
-from aiogram.filters import Command, or_f
+from aiogram import Router
+from aiogram.filters import Command
 from aiogram.types import (
     Message,
 )
-from companion_core import Agent, UserMessage
-from companion_core.types import AnyMessage
+from companion_core import Agent, AnyMessage, SystemMessage
 
+from companion.bot.amc import AgentMessageComposer
 from companion.bot.types import BotContext
 
 log = logging.getLogger(__name__)
 
 
-db: dict[int, list[AnyMessage]] = defaultdict(list)
+DEFAULT_SYSTEM_MESSAGE = """You are a useful AI companion connected to Telegram via bot.
+You should answer to user's messages clearly.
+
+There is a telegram chat with user next:"""
+
+db: dict[int, list[AnyMessage]] = defaultdict(
+    lambda: [SystemMessage(content=DEFAULT_SYSTEM_MESSAGE)]
+)
 
 
 router = Router()
@@ -64,25 +69,14 @@ async def set_think_level(message: Message, ctx: BotContext) -> None:
     await alert.delete()
 
 
-@router.message(or_f(F.text, F.photo))
-async def handler(message: Message, bot: Bot, agent: Agent, ctx: BotContext) -> None:
-    user_message = UserMessage(content=message.text or message.caption)
-    if message.photo:
-        photo_size = message.photo[-1]
-        photo_data = BytesIO()
-        photo_file, _ = await asyncio.gather(
-            bot.get_file(file_id=photo_size.file_id),
-            bot.download(file=photo_size, destination=photo_data),
-        )
-
-        # Encode to base64
-        image_base64 = base64.b64encode(photo_data.getvalue()).decode("utf-8")
-        file_extention = (
-            photo_file.file_path.split(".")[-1].lower()
-            if photo_file.file_path
-            else "jpg"
-        )
-        user_message.images = [f"data:image/{file_extention};base64,{image_base64}"]
+@router.message()
+async def handler(
+    message: Message,
+    agent: Agent,
+    ctx: BotContext,
+    amc: AgentMessageComposer,
+) -> None:
+    user_message = await amc.compose(message=message, role="user")
 
     completions = await agent.ainvoke(
         messages=db[message.chat.id] + [user_message],
