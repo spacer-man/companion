@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import time
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
@@ -6,13 +7,18 @@ from functools import wraps
 from typing import ParamSpec, TypeVar
 
 from aiogram import Bot
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery
+from aiogram.types import Message as AiogramMessage
 
 P = ParamSpec("P")
 R = TypeVar("R")
 
 DEFAULT_CHAT_ACTION_TIMEOUT = 3 * 60
 CHAT_ACTION_UPDATE_DELAY = 4
+DEFAULT_POSSIBILITY_TO_UPDATE_CHECK_DELAY = 1
+
+
+log = logging.getLogger(__name__)
 
 
 async def chat_action(
@@ -53,11 +59,11 @@ def wrap_chat_action(
     ) -> Callable[P, Awaitable[R]]:
         @wraps(func)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-            event: Message | CallbackQuery = args[0]  # ty: ignore[invalid-assignment]
+            event: AiogramMessage | CallbackQuery = args[0]  # ty: ignore[invalid-assignment]
 
             business_connection_id = None
             message_thread_id = None
-            if isinstance(event, Message):
+            if isinstance(event, AiogramMessage):
                 chat_id = event.chat.id
                 business_connection_id = event.business_connection_id
                 message_thread_id = event.message_thread_id
@@ -88,3 +94,72 @@ def wrap_chat_action(
         return wrapper
 
     return decorator
+
+
+class StateMessage:
+    """Class that simplify displaying & updating state message."""
+
+    def __init__(
+        self,
+        initial_message: AiogramMessage,
+        delay: int | None = None,
+    ) -> None:
+        self._delay = delay or CHAT_ACTION_UPDATE_DELAY
+        self._init_message = initial_message
+        self._message: AiogramMessage | None = None
+        self._last_update: float | None = None
+        self._last_content: str | None = None
+
+    async def _send_update(
+        self,
+        update_callback: Awaitable,
+        ensure_updated: bool = False,
+        check_delay: int | None = None,
+    ) -> bool:
+        if not check_delay:
+            check_delay = DEFAULT_POSSIBILITY_TO_UPDATE_CHECK_DELAY
+        is_updated = False
+
+        while True:
+            if (
+                self._last_update is None
+                or self._last_update + self._delay <= time.monotonic()
+            ):
+                await update_callback
+                self._last_update = time.monotonic()
+                is_updated = True
+
+            if not ensure_updated or is_updated:
+                break
+
+            await asyncio.sleep(check_delay)
+
+        return is_updated
+
+    async def update_text(
+        self,
+        text: str,
+        ensure_updated: bool = False,
+        check_delay: int | None = None,
+    ) -> None:
+        async def callback():
+            if self._last_content == text:
+                return
+
+            if self._message:
+                await self._message.edit_text(text=text)
+            else:
+                self._message = await self._init_message.answer(text=text)
+
+            self._last_content = text
+
+        await self._send_update(callback(), ensure_updated, check_delay)
+
+        while True:
+            is_updated = await self._send_update(callback())
+            if not ensure_updated or is_updated:
+                break
+
+    async def remove(self) -> None:
+        if self._message:
+            await self._message.delete()

@@ -1,18 +1,23 @@
 import asyncio
 import logging
 
+from agents import Agent, OpenAIProvider, RunConfig
+from agents.decorators import tool
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
 from aiogram.types import BotCommand, BotCommandScopeChat
-from companion_core import LLM, Agent, tool
 from faster_whisper import WhisperModel
 
 from companion.bot.amc import AiogramAMC
 from companion.bot.config import Config
 from companion.bot.handlers import router
-from companion.bot.types import BotContext
+
+DEFAULT_SYSTEM_MESSAGE = """You are a useful AI companion connected to Telegram via bot.
+You should answer to user's messages clearly.
+
+There is a telegram chat with user next:"""
 
 
 @tool
@@ -25,16 +30,17 @@ async def run() -> None:
     config = Config()
 
     agent = Agent(
-        llm=LLM(
-            base_url="http://localhost:11434/v1",
-            api_key="ollama",
-        ),
-        tool_call_error_ok=True,
+        name="Main",
+        instructions=DEFAULT_SYSTEM_MESSAGE,
+        tools=[get_weather],
     )
 
-    context = BotContext(
-        config=config,
-        agent_tools=[get_weather],
+    run_config = RunConfig(
+        model=config.llm_model,
+        model_provider=OpenAIProvider(
+            api_key="ollama",
+            base_url="http://localhost:11434/v1",
+        ),
     )
 
     bot_session = None
@@ -46,7 +52,7 @@ async def run() -> None:
     bot = Bot(
         token=config.tg_bot_token.get_secret_value(),
         session=bot_session,
-        default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN),
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
 
     await config.stt_models_dir.mkdir(parents=True, exist_ok=True)
@@ -62,7 +68,7 @@ async def run() -> None:
         whisper_model=whisper_model,
     )
 
-    dp = Dispatcher(agent=agent, ctx=context, amc=aiogram_amc)
+    dp = Dispatcher(agent=agent, config=config, amc=aiogram_amc, run_config=run_config)
 
     await bot.set_my_commands(
         commands=[

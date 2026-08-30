@@ -7,7 +7,7 @@ from aiogram.types import (
     Message,
 )
 
-from companion.bot.types import BotContext
+from companion.bot.config import Config
 
 log = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ router = Router()
 
 
 @router.message(Command(commands=["think", "nothink"]))
-async def set_think_level(message: Message, ctx: BotContext) -> None:
+async def set_think_level(message: Message, config: Config) -> None:
     if not message.text:
         raise RuntimeError("message.text is None")
 
@@ -36,7 +36,7 @@ async def set_think_level(message: Message, ctx: BotContext) -> None:
         return
 
     elif len(params) == 0:
-        llm_reasoning_effort = ctx.config.llm_reasoning_effort
+        llm_reasoning_effort = config.llm_reasoning_effort
         await message.answer(
             text=f"The current think level is equal to '{llm_reasoning_effort}'"
         )
@@ -51,7 +51,7 @@ async def set_think_level(message: Message, ctx: BotContext) -> None:
         await alert.delete()
         return
 
-    ctx.config.llm_reasoning_effort = level
+    config.llm_reasoning_effort = level
     alert = await message.answer(text=f"The think level was setted to '{level}'")
     await asyncio.sleep(3)
     await alert.delete()
