@@ -111,11 +111,8 @@ class AiogramAMC(AgentMessageComposer[AiogramMessage]):
         content_data: dict[str, Any] = {
             "id": message.message_id,
             "text": message.text or message.caption,
-            "audio": (
-                await self._pull_audio(audio)
-                if (audio := message.audio or message.voice)
-                else None
-            ),
+            "voice": (await self._pull_audio(message.voice) if message.voice else None),
+            "audio": (await self._pull_audio(message.audio) if message.audio else None),
             "type": "sticker" if message.sticker else None,
             "date": message.date.strftime(DATETIME_STRING_FORMAT),
             "author": (

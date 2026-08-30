@@ -39,9 +39,9 @@ async def handler(
 ) -> None:
     user_message = await amc.compose(message=message, role="user")
 
-    if ctx.config.reply_transcribed_audio and user_message.content:
+    if ctx.config.reply_transcribed_voice and user_message.content:
         message_content: dict[str, Any] = json.loads(user_message.content)
-        transcribed_audio: str | None = message_content.get("audio")
+        transcribed_audio: str | None = message_content.get("voice")
         if transcribed_audio:
             escaped_audio = transcribed_audio.replace("`", r"\`")
             await message.reply(text=f"\\[Transcribed audio\\]:\n```{escaped_audio}```")
