@@ -57,7 +57,7 @@ async def handler(
         transcribed_audio: str | None = message_content.get("voice")
         if transcribed_audio:
             await message.reply(
-                text=f"[Transcribed audio]:\n<codeblock>{escape_html(transcribed_audio)}</codeblock>"
+                text=f"[Transcribed audio]:\n<pre><code>{escape_html(transcribed_audio)}</code></pre>"
             )
 
     state_msg = StateMessage(initial_message=message)
