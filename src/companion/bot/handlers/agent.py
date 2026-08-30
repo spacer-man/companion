@@ -93,7 +93,7 @@ async def handler(
                 )
             elif event.item.type == "message_output_item":
                 await state_msg.update_text(
-                    text=escape_html(ItemHelpers.text_message_output(event.item)),
+                    text=ItemHelpers.text_message_output(event.item),
                     ensure_updated=True,
                 )
                 break
