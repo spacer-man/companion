@@ -15,5 +15,5 @@ wheels/
 # Secret files
 secrets/
 
-# STT model files
-stt/models/
+# Data files
+data/
