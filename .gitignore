@@ -12,5 +12,8 @@ wheels/
 # Environment files
 .env
 
+# Secret files
+secrets/
+
 # STT model files
 stt/models/
