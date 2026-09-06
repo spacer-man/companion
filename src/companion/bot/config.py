@@ -37,13 +37,6 @@ class LLMConfig(BaseModel):
 # =====================================================
 
 
-class WhisperConfig(BaseModel):
-    model_size: Literal["small", "medium", "large"] = "medium"
-    models_dir: Path = Path("stt")
-    device: Literal["auto", "cpu", "gpu"] = "auto"
-    hf_access_token: SecretStr | None = None
-
-
 class BaseSTTConfig(BaseModel):
     active: bool = False
 
