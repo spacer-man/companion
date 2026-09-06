@@ -112,7 +112,7 @@ class StateMessage:
 
     async def _send_update(
         self,
-        update_callback: Awaitable,
+        update_callback: Callable[[], Awaitable],
         ensure_updated: bool = False,
         check_delay: int | None = None,
     ) -> bool:
@@ -125,7 +125,7 @@ class StateMessage:
                 self._last_update is None
                 or self._last_update + self._delay <= time.monotonic()
             ):
-                await update_callback
+                await update_callback()
                 self._last_update = time.monotonic()
                 is_updated = True
 
@@ -153,10 +153,8 @@ class StateMessage:
 
             self._last_content = text
 
-        await self._send_update(callback(), ensure_updated, check_delay)
-
         while True:
-            is_updated = await self._send_update(callback())
+            is_updated = await self._send_update(callback, ensure_updated, check_delay)
             if not ensure_updated or is_updated:
                 break
 
