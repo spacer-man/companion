@@ -128,7 +128,6 @@ async def handler(
                             draft_stream.feed(token=reasoning[0].text)
 
                     elif event.item.type == "message_output_item":
-                        await state_msg.remove()
                         answer = ItemHelpers.text_message_output(event.item)
                         final_answer += answer
                         draft_stream.feed(token=final_answer)
