@@ -17,3 +17,6 @@ secrets/
 
 # Data files
 data/
+
+# Config files
+config.json
