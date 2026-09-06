@@ -2,7 +2,6 @@ import asyncio
 import logging
 
 from agents import Agent, ModelSettings, OpenAIProvider, RunConfig
-from agents.decorators import tool
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.client.session.aiohttp import AiohttpSession
@@ -12,9 +11,12 @@ from faster_whisper import WhisperModel
 from openai.types import Reasoning
 
 from companion.bot.amc import AiogramAMC
-from companion.bot.config import Config
+from companion.bot.config import AgentConfig
 from companion.bot.handlers import router
-from companion.bot.mcps.google_workspace import google_workspace_mcp
+from companion.bot.mcp_context import mcp_context
+from companion.bot.stt import WhisperSTT
+
+CONFIG_FILEPATH = "config.json"
 
 DEFAULT_SYSTEM_MESSAGE = """You are a useful AI companion connected to Telegram via bot.
 You should answer to user's messages clearly.
@@ -45,63 +47,60 @@ There is a telegram chat with user next:"""
 log = logging.getLogger(__name__)
 
 
-@tool
-def get_weather(city: str) -> str:
-    return f"It's sunny in {city.title()} now."
-
-
 async def run() -> None:
     logging.basicConfig(level=logging.DEBUG)
-    config = Config()
+    config = AgentConfig.load(filepath=CONFIG_FILEPATH)
 
-    async with google_workspace_mcp() as gworkspace_mcp:
+    async with mcp_context(config=config.mcp) as mcp_servers:
         agent = Agent(
             name="Main",
             instructions=DEFAULT_SYSTEM_MESSAGE,
-            tools=[get_weather],
-            mcp_servers=[gworkspace_mcp],
+            mcp_servers=mcp_servers,
         )
 
         run_config = RunConfig(
-            model=config.llm_model,
+            model=config.llm.model,
             model_settings=ModelSettings(
-                reasoning=Reasoning(effort=config.llm_reasoning_effort),
+                reasoning=Reasoning(effort=config.llm.reasoning_effort),
             ),
             model_provider=OpenAIProvider(
                 api_key=(
-                    config.llm_api_key.get_secret_value()
-                    if config.llm_api_key
+                    config.llm.api_key.get_secret_value()
+                    if config.llm.api_key
                     else None
                 ),
-                base_url=config.llm_base_url,
+                base_url=str(config.llm.base_url) if config.llm.base_url else None,
                 use_responses=False,
             ),
         )
 
         bot_session = None
-        if config.tg_bot_proxy:
+        if config.telegram.bot_proxy_url:
             bot_session = AiohttpSession(
-                proxy=[config.tg_bot_proxy.get_secret_value()],
+                proxy=[config.telegram.bot_proxy_url.get_secret_value()],
             )
 
         bot = Bot(
-            token=config.tg_bot_token.get_secret_value(),
+            token=config.telegram.bot_token.get_secret_value(),
             session=bot_session,
             default=DefaultBotProperties(parse_mode=ParseMode.HTML),
         )
 
-        await config.stt_models_dir.mkdir(parents=True, exist_ok=True)
+        stt = None
+        if config.stt and config.stt.active:
+            match config.stt.provider:
+                case "whisper":
+                    config.stt.models_dir.mkdir(parents=True, exist_ok=True)
 
-        whisper_model = WhisperModel(
-            model_size_or_path=config.stt_model_size,
-            download_root=config.stt_models_dir.as_posix(),
-            device=config.stt_device,
-        )
+                    stt = WhisperSTT(
+                        model=WhisperModel(
+                            model_size_or_path=config.stt.model_size,
+                            download_root=config.stt.models_dir.as_posix(),
+                            device=config.stt.device,
+                        )
+                    )
 
-        aiogram_amc = AiogramAMC(
-            bot=bot,
-            whisper_model=whisper_model,
-        )
+        aiogram_amc = AiogramAMC(bot=bot, stt=stt)
 
         dp = Dispatcher(
             agent=agent,
@@ -110,19 +109,20 @@ async def run() -> None:
             run_config=run_config,
         )
 
-        await bot.set_my_commands(
-            commands=[
-                BotCommand(
-                    command="/think",
-                    description="Set/get current think level.",
-                ),
-                BotCommand(
-                    command="/nothink",
-                    description="Set think level to 'none'",
-                ),
-            ],
-            scope=BotCommandScopeChat(chat_id=config.tg_owner_id.get_secret_value()),
-        )
+        for telegram_chat_id in config.telegram.owner_ids:
+            await bot.set_my_commands(
+                commands=[
+                    BotCommand(
+                        command="/think",
+                        description="Set/get current think level.",
+                    ),
+                    BotCommand(
+                        command="/nothink",
+                        description="Set think level to 'none'",
+                    ),
+                ],
+                scope=BotCommandScopeChat(chat_id=telegram_chat_id.get_secret_value()),
+            )
 
         dp.include_router(router)
 
