@@ -2,61 +2,34 @@ import asyncio
 import base64
 import json
 import logging
-from abc import ABC, abstractmethod
-from collections import namedtuple
-from collections.abc import AsyncGenerator, Iterable
 from io import BytesIO
-from typing import Any, Literal, TypeVar
+from typing import Any, Literal
 
 import pyvips
 from aiogram import Bot
 from aiogram.types import Audio, Document, PhotoSize, Sticker, Voice
 from aiogram.types import Message as AiogramMessage
 from companion_core.types import AnyMessage, Message
-from faster_whisper import WhisperModel
+
+from companion.bot.stt import STT
+
+from .abc import AgentMessageComposer
 
 log = logging.getLogger(__name__)
 
-OriginalMessage = TypeVar("OriginalMessage")
-
-OriginalMessageData = namedtuple(
-    "OriginalMessageData", ("original_message", "message_role")
-)
 
 UNKNOWN_FIELD_DEFAULT_VALUE = "<unknown>"
-
 DATETIME_STRING_FORMAT = "%d.%m.%YT%H:%MZ%z"
-
 IMAGE_FILE_EXTENTIONS = ("png", "jpg", "jpeg")
 DEFAULT_IMAGE_FILE_EXTENTION = "jpg"
-
-
-class AgentMessageComposer[OriginalMessage](ABC):
-    """The Agent message composer (AMC) interface."""
-
-    @abstractmethod
-    async def compose(
-        self,
-        message: OriginalMessage,
-        role: Literal["assistant", "user"],
-    ) -> AnyMessage: ...
-
-    async def compose_conveyor(
-        self, messages: Iterable[OriginalMessageData | AnyMessage]
-    ) -> AsyncGenerator[AnyMessage]:
-        for message in messages:
-            if isinstance(message, tuple):
-                yield await self.compose(message=message[0], role=message[1])
-            else:
-                yield message
 
 
 class AiogramAMC(AgentMessageComposer[AiogramMessage]):
     """The aiogram Agent message composer implementation."""
 
-    def __init__(self, bot: Bot, whisper_model: WhisperModel | None = None) -> None:
+    def __init__(self, bot: Bot, stt: STT | None = None) -> None:
         self._bot = bot
-        self._whisper_model = whisper_model
+        self._stt = stt
 
     async def _pull_image(self, image: PhotoSize | Sticker | Document) -> str:
         """Download image and return url with it encoded to base64."""
@@ -86,19 +59,15 @@ class AiogramAMC(AgentMessageComposer[AiogramMessage]):
         return image_url
 
     async def _pull_audio(self, audio: Audio | Voice | Document) -> str | None:
+        if not self._stt:
+            return None
+
         audio_data = BytesIO()
         await self._bot.download(file=audio, destination=audio_data)
 
-        if not self._whisper_model:
-            return None
-
-        segments, _info = self._whisper_model.transcribe(
+        transcribed = await self._stt.transcribe(
             audio=audio_data,
-            multilingual=True,
-            vad_filter=True,
         )
-
-        transcribed = "".join(segment.text for segment in segments).strip()
 
         return transcribed
 
