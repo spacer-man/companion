@@ -1,41 +1,108 @@
-import logging
-from collections import defaultdict
-from typing import Literal
+from pathlib import Path
+from typing import Literal, Self
 
-from anyio import Path
-from companion_core import AnyMessage
-from pydantic import Secret, SecretStr
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from agents.mcp import MCPServerStdioParams
+from pydantic import BaseModel, Field, HttpUrl, Secret, SecretStr
 
-log = logging.getLogger(__name__)
-
-
-db: dict[int, list[AnyMessage]] = defaultdict(list)
+# =====================================================
+# =                        MCP                        =
+# =====================================================
 
 
-class Config(BaseSettings):
-    tg_owner_id: Secret[int]
-    tg_bot_token: SecretStr
-    tg_bot_proxy: SecretStr | None = None
+class MCPServerStdioConfig(BaseModel):
+    name: str
+    params: MCPServerStdioParams
+    cache_tools_list: bool = True
 
-    conversation_db_url: SecretStr | None = None
 
-    llm_model: str = "qwen3.5:4b"
-    llm_reasoning_effort: Literal["none", "low", "high", "max"] | None = None
-    llm_api_key: SecretStr | None = None
-    llm_base_url: str | None = None
+class MCPServersConfig(BaseModel):
+    active: bool = True
+    servers: list[MCPServerStdioConfig] = Field(default_factory=list)
 
-    reply_transcribed_voice: bool = True
 
-    stt_model_size: Literal["small", "medium", "large"] = "medium"
-    stt_models_dir: Path = Path("stt/models")
-    stt_device: Literal["auto", "cpu", "gpu"] = "auto"
+# =====================================================
+# =                        LLM                        =
+# =====================================================
 
+
+class LLMConfig(BaseModel):
+    model: str
+    reasoning_effort: Literal["none", "low", "high", "max"] | None = None
+    api_key: SecretStr | None = None
+    base_url: HttpUrl | None = None
+
+
+# =====================================================
+# =                        STT                        =
+# =====================================================
+
+
+class WhisperConfig(BaseModel):
+    model_size: Literal["small", "medium", "large"] = "medium"
+    models_dir: Path = Path("stt")
+    device: Literal["auto", "cpu", "gpu"] = "auto"
     hf_access_token: SecretStr | None = None
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore",
-    )
+
+class BaseSTTConfig(BaseModel):
+    active: bool = False
+
+
+class WhisperSTTConfig(BaseSTTConfig):
+    provider: Literal["whisper"] = "whisper"
+    model_size: Literal["small", "medium", "large"] = "medium"
+    models_dir: Path = Path("stt")
+    device: Literal["auto", "cpu", "gpu"] = "auto"
+    hf_access_token: SecretStr | None = None
+
+
+type STTConfig = WhisperSTTConfig  # Later maybe add Field(discriminator="provider")
+
+
+# =====================================================
+# =                     Telegram                      =
+# =====================================================
+
+
+class PersonalChatConfig(BaseModel):
+    send_audio_transcribtion: bool = True
+
+
+class TelegramConfig(BaseModel):
+    owner_ids: list[Secret[int]]
+    bot_token: SecretStr
+    bot_proxy_url: SecretStr | None = None
+    personal: PersonalChatConfig = Field(default_factory=PersonalChatConfig)
+
+
+# =====================================================
+# =                     Database                      =
+# =====================================================
+
+
+class SqliteConfig(BaseModel):
+    db_path: str | Path = ":memory:"
+
+
+class DBConfig(BaseModel):
+    provider: Literal["sqlite"] = "sqlite"
+    params: SqliteConfig = Field(default_factory=SqliteConfig)
+
+
+# =====================================================
+# =                   Full config                     =
+# =====================================================
+
+
+class AgentConfig(BaseModel):
+    telegram: TelegramConfig
+    llm: LLMConfig
+    db: DBConfig = Field(default_factory=DBConfig)
+    stt: STTConfig | None = None
+    mcp: MCPServersConfig | None = None
+
+    @classmethod
+    def load(cls, filepath: str | Path) -> Self:
+        raw_config = Path(filepath).read_text()
+
+        return cls.model_validate_json(raw_config)
