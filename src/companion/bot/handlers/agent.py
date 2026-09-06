@@ -16,7 +16,7 @@ from telegramify_markdown.stream.draft import (
 )
 
 from companion.bot.amc import AgentMessageComposer
-from companion.bot.config import Config
+from companion.bot.config import AgentConfig
 from companion.bot.utils import StateMessage, wrap_chat_action
 
 log = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ async def handler(
     message: AiogramMessage,
     bot: Bot,
     agent: Agent,
-    config: Config,
+    config: AgentConfig,
     run_config: RunConfig,
     amc: AgentMessageComposer,
 ) -> None:
@@ -52,11 +52,7 @@ async def handler(
 
         session = AsyncSQLiteSession(
             session_id=str(message.chat.id),
-            db_path=(
-                config.conversation_db_url.get_secret_value()
-                if config.conversation_db_url
-                else ":memory:"
-            ),
+            db_path=config.db.db_path,
         )
         stream = Runner.run_streamed(
             starting_agent=agent,
@@ -65,7 +61,7 @@ async def handler(
             session=session,
         )
 
-        if config.reply_transcribed_voice and user_message.content:
+        if config.telegram.personal.send_audio_transcribtion and user_message.content:
             message_content: dict[str, Any] = json.loads(user_message.content)
             transcribed_audio: str | None = message_content.get("voice")
             if transcribed_audio:

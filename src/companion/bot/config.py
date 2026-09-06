@@ -80,13 +80,12 @@ class TelegramConfig(BaseModel):
 # =====================================================
 
 
-class SqliteConfig(BaseModel):
+class SqliteDBConfig(BaseModel):
+    provider: Literal["sqlite"] = "sqlite"
     db_path: str | Path = ":memory:"
 
 
-class DBConfig(BaseModel):
-    provider: Literal["sqlite"] = "sqlite"
-    params: SqliteConfig = Field(default_factory=SqliteConfig)
+type DBConfig = SqliteDBConfig
 
 
 # =====================================================
