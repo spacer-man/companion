@@ -44,7 +44,7 @@ class BaseSTTConfig(BaseModel):
 class WhisperSTTConfig(BaseSTTConfig):
     provider: Literal["whisper"] = "whisper"
     model_size: Literal["small", "medium", "large"] = "medium"
-    models_dir: Path = Path("stt")
+    models_dir: Path = Path("stt/whisper")
     device: Literal["auto", "cpu", "gpu"] = "auto"
     hf_access_token: SecretStr | None = None
 
