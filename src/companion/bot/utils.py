@@ -102,7 +102,7 @@ class StateMessage:
     def __init__(
         self,
         initial_message: AiogramMessage,
-        delay: int | None = None,
+        delay: float | None = None,
     ) -> None:
         self._delay = delay or CHAT_ACTION_UPDATE_DELAY
         self._init_message = initial_message
