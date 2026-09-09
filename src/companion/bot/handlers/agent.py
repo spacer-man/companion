@@ -1,12 +1,14 @@
-import json
 import logging
-from typing import Any
 
-from agents import Agent, ItemHelpers, RunConfig, Runner
+from agents import Agent, RunConfig, Runner
 from agents.extensions.memory import AsyncSQLiteSession
 from aiogram import Bot, Router
 from aiogram.types import InputRichMessage
 from aiogram.types import Message as AiogramMessage
+from openai.types.responses import (
+    ResponseReasoningTextDeltaEvent,
+    ResponseTextDeltaEvent,
+)
 from telegramify_markdown.stream import DraftStream
 from telegramify_markdown.stream.draft import (
     EntityDraftPayload,
@@ -43,9 +45,9 @@ async def handler(
     try:
         if message.audio or message.voice:
             await state_msg.update_text(
-                text=f"Transcribing {'audio' if message.audio else 'voice'}...",
+                text=f"🎙️ Transcribing {'audio' if message.audio else 'voice'}...",
             )
-        user_message = await amc.compose(message=message, role="user")
+        user_message, process_msg_meta = await amc.compose(message=message, role="user")
 
         if not user_message.content:
             raise RuntimeError("user_message.content is empty")
@@ -55,19 +57,21 @@ async def handler(
             db_path=config.db.db_path,
         )
         stream = Runner.run_streamed(
+            max_turns=50,
             starting_agent=agent,
             input=user_message.content,
             run_config=run_config,
             session=session,
         )
 
-        if config.telegram.personal.send_audio_transcribtion and user_message.content:
-            message_content: dict[str, Any] = json.loads(user_message.content)
-            transcribed_audio: str | None = message_content.get("voice")
-            if transcribed_audio:
-                await message.reply(
-                    text=f"<pre><code>{escape_html(transcribed_audio)}</code></pre>"
-                )
+        if (
+            process_msg_meta
+            and (transcribed_audio := process_msg_meta.get("transcribed"))
+            and config.telegram.personal.send_audio_transcribtion
+        ):
+            await message.reply(
+                text=f"<pre><code>{escape_html(transcribed_audio)}</code></pre>"
+            )
 
         async def send_draft(payload: RichDraftPayload | EntityDraftPayload) -> None:
             await bot.send_rich_message_draft(
@@ -82,19 +86,27 @@ async def handler(
                 rich_message=InputRichMessage(html=payload.rich_message.html),  # ty: ignore[unresolved-attribute]
             )
 
-        final_answer = ""
+        show_reasoning: bool = False
         async with DraftStream(
             send_draft=send_draft,
             send_final=send_final,
             interval=0.3,
             thinking_delay=0.5,
             keepalive_timeout=25,
-            cancel_clears_draft=False,
         ) as draft_stream:
             async for event in stream.stream_events():
                 # We'll ignore the raw responses event deltas
                 if event.type == "raw_response_event":
-                    continue
+                    if isinstance(event.data, ResponseTextDeltaEvent):
+                        draft_stream.feed(token=event.data.delta)
+                    elif (
+                        isinstance(event.data, ResponseReasoningTextDeltaEvent)
+                        and not show_reasoning
+                    ):
+                        await state_msg.update_text(text="🔶 Thinking...")
+                        show_reasoning = True
+                    else:
+                        continue
 
                 # When the agent updates, print that
                 elif event.type == "agent_updated_stream_event":
@@ -106,9 +118,12 @@ async def handler(
                 # When items are generated, print them
                 elif event.type == "run_item_stream_event":
                     if event.item.type == "tool_call_item":
-                        await state_msg.update_text(
-                            text=f"🛠️ Tool <code>{escape_html(str(event.item.tool_name))}</code> was called"
+                        current_tool_name = event.item.tool_name or "unknown"
+                        current_tool_name = current_tool_name.replace("`", r"\`")
+                        tool_alert = (
+                            f"\n\n> _🛠️ Tool_ `{current_tool_name}` _was called._\n\n"
                         )
+                        draft_stream.feed(token=tool_alert)
 
                     elif event.item.type == "tool_call_output_item":
                         tool_name: str | None = None
@@ -128,10 +143,7 @@ async def handler(
                             draft_stream.feed(token=reasoning[0].text)
 
                     elif event.item.type == "message_output_item":
-                        answer = ItemHelpers.text_message_output(event.item)
-                        final_answer += answer
-                        draft_stream.feed(token=final_answer)
-                        break
+                        pass
 
                     else:
                         pass  # Ignore other event types

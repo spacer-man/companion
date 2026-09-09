@@ -2,7 +2,7 @@ import logging
 from abc import ABC, abstractmethod
 from collections import namedtuple
 from collections.abc import AsyncGenerator, Iterable
-from typing import Literal, TypeVar
+from typing import Literal, NotRequired, TypedDict, TypeVar
 
 from companion_core.types import AnyMessage
 
@@ -14,6 +14,10 @@ OriginalMessageData = namedtuple(
 )
 
 
+class MessageComposedMetadata(TypedDict):
+    transcribed: NotRequired[str | None]
+
+
 class AgentMessageComposer[OriginalMessage](ABC):
     """The Agent message composer (AMC) interface."""
 
@@ -22,13 +26,13 @@ class AgentMessageComposer[OriginalMessage](ABC):
         self,
         message: OriginalMessage,
         role: Literal["assistant", "user"],
-    ) -> AnyMessage: ...
+    ) -> tuple[AnyMessage, MessageComposedMetadata | None]: ...
 
     async def compose_conveyor(
         self, messages: Iterable[OriginalMessageData | AnyMessage]
     ) -> AsyncGenerator[AnyMessage]:
         for message in messages:
             if isinstance(message, tuple):
-                yield await self.compose(message=message[0], role=message[1])
+                yield (await self.compose(message=message[0], role=message[1]))[0]
             else:
                 yield message

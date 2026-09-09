@@ -1,19 +1,19 @@
 import asyncio
 import base64
-import json
 import logging
 from io import BytesIO
-from typing import Any, Literal
+from typing import Literal
 
 import pyvips
 from aiogram import Bot
 from aiogram.types import Audio, Document, PhotoSize, Sticker, Voice
 from aiogram.types import Message as AiogramMessage
-from companion_core.types import AnyMessage, Message
+from companion_core import AnyMessage
+from companion_core.types import Message
 
 from companion.bot.stt import STT
 
-from .abc import AgentMessageComposer
+from .abc import AgentMessageComposer, MessageComposedMetadata
 
 log = logging.getLogger(__name__)
 
@@ -75,24 +75,36 @@ class AiogramAMC(AgentMessageComposer[AiogramMessage]):
         self,
         message: AiogramMessage,
         role: Literal["assistant", "user"],
-    ) -> AnyMessage:
-        # ====== Serialize content ======
-        content_data: dict[str, Any] = {
-            "id": message.message_id,
-            "text": message.text or message.caption,
-            "voice": (await self._pull_audio(message.voice) if message.voice else None),
-            "audio": (await self._pull_audio(message.audio) if message.audio else None),
-            "type": "sticker" if message.sticker else None,
-            "date": message.date.strftime(DATETIME_STRING_FORMAT),
-            "author": (
+    ) -> tuple[AnyMessage, MessageComposedMetadata | None]:
+        # ====== Select message metadata ======
+        message_id = f"id:{message.message_id}"
+        date = message.date.strftime(DATETIME_STRING_FORMAT)
+        author = f"author:{
+            (
                 message.from_user.full_name
                 if message.from_user
                 else UNKNOWN_FIELD_DEFAULT_VALUE
-            ),
-        }
-        content: str = json.dumps(
-            {k: v for k, v in content_data.items() if v is not None}
-        )
+            )!r
+        }"
+        msg_type = ""
+        if message.sticker:
+            msg_type = "sticker(🖼)"
+        elif message.audio:
+            msg_type = "🎵"
+        elif message.voice:
+            msg_type = "🗣️"
+
+        items = filter(lambda item: item, (message_id, date, author, msg_type))
+
+        # ====== Select message content ======
+        voice_msg = await self._pull_audio(message.voice) if message.voice else None
+        audio_msg = await self._pull_audio(message.audio) if message.audio else None
+        msg_content = message.text or message.caption or voice_msg or audio_msg
+
+        process_meta = MessageComposedMetadata(transcribed=voice_msg or audio_msg)
+
+        # ====== Compose to agent message text content ======
+        content = f"[{' '.join(items)}]: {msg_content}".strip()
 
         # ====== Pull images ======
         images: list[str] = []
@@ -119,4 +131,4 @@ class AiogramAMC(AgentMessageComposer[AiogramMessage]):
             content=content,
             role=role,
             images=images,
-        )
+        ), process_meta
