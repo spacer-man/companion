@@ -41,7 +41,7 @@ async def handler(
     run_config: RunConfig,
     amc: AgentMessageComposer,
 ) -> None:
-    state_msg = StateMessage(initial_message=message, delay=0.3)
+    state_msg = StateMessage.from_message(message=message, delay=0.3)
     try:
         if message.audio or message.voice:
             await state_msg.update_text(

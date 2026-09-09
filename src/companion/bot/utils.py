@@ -4,7 +4,7 @@ import time
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from functools import wraps
-from typing import ParamSpec, TypeVar
+from typing import ParamSpec, Self, TypeVar
 
 from aiogram import Bot
 from aiogram.types import CallbackQuery
@@ -101,14 +101,28 @@ class StateMessage:
 
     def __init__(
         self,
-        initial_message: AiogramMessage,
+        bot: Bot,
+        chat_id: int,
         delay: float | None = None,
     ) -> None:
         self._delay = delay or CHAT_ACTION_UPDATE_DELAY
-        self._init_message = initial_message
+        self._bot = bot
+        self._chat_id = chat_id
         self._message: AiogramMessage | None = None
         self._last_update: float | None = None
         self._last_content: str | None = None
+
+    @classmethod
+    def from_message(
+        cls,
+        message: AiogramMessage,
+        delay: float | None = None,
+    ) -> Self:
+        return cls(
+            bot=message.bot,  # ty: ignore[invalid-argument-type]
+            chat_id=message.chat.id,
+            delay=delay,
+        )
 
     async def _send_update(
         self,
@@ -149,7 +163,10 @@ class StateMessage:
             if self._message:
                 await self._message.edit_text(text=text)
             else:
-                self._message = await self._init_message.answer(text=text)
+                self._message = await self._bot.send_message(
+                    chat_id=self._chat_id,
+                    text=text,
+                )
 
             self._last_content = text
 
