@@ -2,6 +2,7 @@ import asyncio
 import logging
 
 from agents import Agent, ModelSettings, OpenAIProvider, RunConfig
+from agents.extensions.memory import AsyncSQLiteSession
 from aiogram import Bot, Dispatcher, F
 from aiogram.client.default import DefaultBotProperties
 from aiogram.client.session.aiohttp import AiohttpSession
@@ -11,6 +12,7 @@ from faster_whisper import WhisperModel
 from openai.types import Reasoning
 
 from companion.bot.amc import AiogramAMC
+from companion.bot.assistant import TelegramAssistant
 from companion.bot.config import AgentConfig
 from companion.bot.handlers import router
 from companion.bot.mcp_context import mcp_context
@@ -109,10 +111,17 @@ async def run() -> None:
 
         aiogram_amc = AiogramAMC(bot=bot, stt=stt)
 
-        dp = Dispatcher(
+        assistant = TelegramAssistant(
             agent=agent,
-            config=config,
             amc=aiogram_amc,
+            tg_config=config.telegram,
+            session_factory=lambda session_id: AsyncSQLiteSession(
+                session_id=session_id, db_path=config.db.db_path
+            ),
+        )
+
+        dp = Dispatcher(
+            assistant=assistant,
             run_config=run_config,
         )
 
