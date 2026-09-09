@@ -2,7 +2,7 @@ import asyncio
 import logging
 
 from agents import Agent, ModelSettings, OpenAIProvider, RunConfig
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, F
 from aiogram.client.default import DefaultBotProperties
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
@@ -123,6 +123,9 @@ async def run() -> None:
                 ],
                 scope=BotCommandScopeChat(chat_id=telegram_chat_id.get_secret_value()),
             )
+
+            # Filter: Allow only owner's events
+            router.message.filter(F.chat.id == telegram_chat_id.get_secret_value())
 
         dp.include_router(router)
 
