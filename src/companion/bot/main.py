@@ -42,13 +42,19 @@ Date-time formatting examples:
 ![22:45 tomorrow](tg://time?unix=1647531900)
 
 
+Read USER.md and WORKFLOW.md to knew about user and about workflow.
+
 There is a telegram chat with user next:"""
 
 log = logging.getLogger(__name__)
 
 
 async def run() -> None:
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(
+        format="%(asctime)s | %(levelname)-8s | %(name)s | %(filename)s:%(lineno)d:%(funcName)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        level=logging.INFO,
+    )
     config = AgentConfig.load(filepath=CONFIG_FILEPATH)
 
     async with mcp_context(config=config.mcp) as mcp_servers:
