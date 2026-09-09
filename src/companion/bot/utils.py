@@ -178,3 +178,11 @@ class StateMessage:
     async def remove(self) -> None:
         if self._message:
             await self._message.delete()
+
+
+def escape(text: str, chars: str, escape_char: str = "\\") -> str:
+    """Escape any symbols in current text using any escape char."""
+    escaped = text[:]
+    for char in set(chars):
+        escaped.replace(char, escape_char + char)
+    return escaped
