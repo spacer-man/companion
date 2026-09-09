@@ -78,6 +78,7 @@ async def run() -> None:
                 base_url=str(config.llm.base_url) if config.llm.base_url else None,
                 use_responses=False,
             ),
+            tool_not_found_behavior="return_error_to_model",
         )
 
         bot_session = None
