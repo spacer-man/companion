@@ -5,7 +5,7 @@ from agents import Agent, RunConfig, Runner, SessionABC
 from aiogram import Router
 from aiogram.types import Message as AiogramMessage
 
-from companion.bot.aa_view import TelegramifyAgentAnswerView
+from companion.bot.aa_view import TelegramifyRichAgentAnswerView
 from companion.bot.amc import AgentMessageComposerABC
 from companion.bot.amc_view import AgentMessageComposeView
 
@@ -38,5 +38,5 @@ async def handler(
         session=session_factory(str(message.chat.id)),
     )
 
-    answer_view = TelegramifyAgentAnswerView.from_message(message)
+    answer_view = TelegramifyRichAgentAnswerView.from_message(message)
     await answer_view.stream_answer(stream)
