@@ -1,13 +1,8 @@
 import asyncio
 import time
-from collections.abc import Callable
 
-from agents import Agent, SessionABC
 from companion_core.types import Message
 
-from companion.bot.amc import AgentMessageComposerABC
-from companion.bot.amc_view import AgentMessageComposeView, EmptyAgentMessageComposeView
-from companion.bot.config import TelegramConfig
 from companion.bot.message_storage import InmemoryMessageStorage, MessageStorageABC
 from companion.bot.turn_composer import SimpleTurnComposer, TurnComposerABC
 
@@ -23,21 +18,11 @@ class TurnsAccumulator:
 
     def __init__(
         self,
-        agent: Agent,
-        amc: AgentMessageComposerABC,
-        tg_config: TelegramConfig,
-        amc_view: AgentMessageComposeView | None = None,
         turn_composer: TurnComposerABC | None = None,
-        session_factory: Callable[[str], SessionABC] | None = None,
         message_storage: MessageStorageABC | None = None,
         new_message_timeout: float | None = None,
     ) -> None:
-        self._agent = agent
-        self._amc = amc
-        self._amc_view = amc_view or EmptyAgentMessageComposeView()
-        self._tg_config = tg_config
         self._turn_composer = turn_composer or SimpleTurnComposer()
-        self._session_factory = session_factory
         self._message_storage = message_storage or InmemoryMessageStorage()
         self._new_message_timeout = new_message_timeout or DEFAULT_NEW_MESSAGE_TIMEOUT
 
@@ -52,7 +37,7 @@ class TurnsAccumulator:
         last_stored_messages_count = await self._message_storage.count(session_id)
 
         time_checkpoint = time.monotonic()
-        while time.monotonic() - time_checkpoint:
+        while time.monotonic() - time_checkpoint > self._new_message_timeout:
             await asyncio.sleep(CHECK_TIMEOUT_INTERVAL)
 
             if last_stored_messages_count != await self._message_storage.count(
