@@ -1,10 +1,12 @@
-<center>
+<div align="center">
 
 # Companion
 
 Your AI agent, designed to help you stay organized and focused in your everyday conversations.
 
-</center>
+</div>
+
+---
 
 ## Possibilities
 
