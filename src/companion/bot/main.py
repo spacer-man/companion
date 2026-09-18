@@ -11,8 +11,8 @@ from aiogram.types import BotCommand, BotCommandScopeChat
 from faster_whisper import WhisperModel
 from openai.types import Reasoning
 
-from companion.bot.amc import AiogramAMC
-from companion.bot.assistant import TelegramAssistant
+from companion.bot.amc import DefaultAgentMessageComposer
+from companion.bot.amc_view import SimpleAgentMessageComposeView
 from companion.bot.config import AgentConfig
 from companion.bot.handlers import router
 from companion.bot.mcp_context import mcp_context
@@ -109,20 +109,17 @@ async def run() -> None:
                         )
                     )
 
-        aiogram_amc = AiogramAMC(bot=bot, stt=stt)
+        amc = DefaultAgentMessageComposer(bot=bot, stt=stt)
+        amc_view = SimpleAgentMessageComposeView()
 
-        assistant = TelegramAssistant(
+        dp = Dispatcher(
+            run_config=run_config,
+            amc=amc,
+            amc_view=amc_view,
             agent=agent,
-            amc=aiogram_amc,
-            tg_config=config.telegram,
             session_factory=lambda session_id: AsyncSQLiteSession(
                 session_id=session_id, db_path=config.db.db_path
             ),
-        )
-
-        dp = Dispatcher(
-            assistant=assistant,
-            run_config=run_config,
         )
 
         for telegram_chat_id in config.telegram.owner_ids:
