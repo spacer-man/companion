@@ -10,7 +10,7 @@ from companion.bot.config import MCPServersConfig
 async def mcp_context(
     config: MCPServersConfig | None = None,
 ) -> AsyncGenerator[list[MCPServer]]:
-    if not config:
+    if not config or not config.active:
         yield []
     else:
         async with MCPServerManager(
