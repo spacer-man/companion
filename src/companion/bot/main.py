@@ -17,6 +17,7 @@ from companion.bot.config import AgentConfig
 from companion.bot.handlers import router
 from companion.bot.mcp_context import mcp_context
 from companion.bot.stt import WhisperSTT
+from companion.bot.tools_provider import ToolsProvider
 
 CONFIG_FILEPATH = "config.json"
 
@@ -63,8 +64,13 @@ async def run() -> None:
         agent = Agent(
             name="Main",
             instructions=DEFAULT_SYSTEM_MESSAGE,
-            mcp_servers=mcp_servers,
         )
+
+        tools_provider = await ToolsProvider.from_mcp_servers(
+            mcp_servers,
+            agent=agent,
+        )
+        agent.tools = tools_provider.get_metatools()
 
         run_config = RunConfig(
             model=config.llm.model,
