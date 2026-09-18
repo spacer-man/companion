@@ -18,6 +18,7 @@ dependencies = [
     "pydantic>=2.13.4",
     "pydantic-settings>=2.15.0",
     "pyvips>=3.2.0",
+    "rank-bm25>=0.2.2",
     "telegramify-markdown[mermaid]>=1.2.0",
 ]
 
