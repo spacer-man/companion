@@ -35,3 +35,8 @@ members = [
 
 [tool.uv.sources]
 companion-core = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "ty>=0.0.82",
+]
