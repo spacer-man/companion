@@ -1,4 +1,6 @@
-from .abc import AgentMessageComposer
-from .aiogram import AiogramAMC
+"""Agent Message Composers (AMC)."""
 
-__all__ = ["AgentMessageComposer", "AiogramAMC"]
+from .abc import AgentMessageComposerABC
+from .default import DefaultAgentMessageComposer
+
+__all__ = ["AgentMessageComposerABC", "DefaultAgentMessageComposer"]

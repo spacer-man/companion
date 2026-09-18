@@ -1,28 +1,36 @@
-import logging
 from abc import ABC, abstractmethod
-from collections import namedtuple
-from typing import Literal, NotRequired, TypedDict, TypeVar
+from collections.abc import AsyncGenerator
+from typing import Literal
 
-from companion_core.types import AnyMessage
+from aiogram.types import Message as AiogramMessage
+from companion_core import AnyMessage
 
-log = logging.getLogger(__name__)
-
-OriginalMessage = TypeVar("OriginalMessage")
-OriginalMessageData = namedtuple(
-    "OriginalMessageData", ("original_message", "message_role")
+from .events import (
+    MessageComposeEvent,
 )
 
 
-class MessageComposedMetadata(TypedDict):
-    transcribed: NotRequired[str | None]
-
-
-class AgentMessageComposer[OriginalMessage](ABC):
-    """The Agent message composer (AMC) interface."""
+class AgentMessageComposerABC(ABC):
+    """Abstract Agent Message Composer."""
 
     @abstractmethod
+    def stream_compose(
+        self,
+        message: AiogramMessage,
+        role: str,
+    ) -> AsyncGenerator[MessageComposeEvent]: ...
+
     async def compose(
         self,
-        message: OriginalMessage,
+        message: AiogramMessage,
         role: Literal["assistant", "user"],
-    ) -> tuple[AnyMessage, MessageComposedMetadata | None]: ...
+    ) -> AnyMessage:
+        composed = None
+        async for event in self.stream_compose(message=message, role=role):
+            if event.data.type == "done":
+                composed = event.data.message
+
+        if not composed:
+            raise RuntimeError("Failed compose message: %r", message)
+
+        return composed
