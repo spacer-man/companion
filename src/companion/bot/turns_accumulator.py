@@ -37,7 +37,7 @@ class TurnsAccumulator:
         last_stored_messages_count = await self._message_storage.count(session_id)
 
         time_checkpoint = time.monotonic()
-        while time.monotonic() - time_checkpoint > self._new_message_timeout:
+        while time.monotonic() - time_checkpoint < self._new_message_timeout:
             await asyncio.sleep(CHECK_TIMEOUT_INTERVAL)
 
             if last_stored_messages_count != await self._message_storage.count(
