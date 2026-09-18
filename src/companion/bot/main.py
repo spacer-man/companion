@@ -18,6 +18,7 @@ from companion.bot.handlers import router
 from companion.bot.mcp_context import mcp_context
 from companion.bot.stt import WhisperSTT
 from companion.bot.tools_provider import ToolsProvider
+from companion.bot.turns_accumulator import TurnsAccumulator
 
 CONFIG_FILEPATH = "config.json"
 
@@ -117,11 +118,13 @@ async def run() -> None:
 
         amc = DefaultAgentMessageComposer(bot=bot, stt=stt)
         amc_view = SimpleAgentMessageComposeView()
+        turns_accum = TurnsAccumulator()
 
         dp = Dispatcher(
             run_config=run_config,
             amc=amc,
             amc_view=amc_view,
+            turns_accum=turns_accum,
             agent=agent,
             session_factory=lambda session_id: AsyncSQLiteSession(
                 session_id=session_id, db_path=config.db.db_path
