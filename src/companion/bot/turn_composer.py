@@ -22,7 +22,6 @@ class TurnComposerABC(ABC):
 class SimpleTurnComposer(TurnComposerABC):
     """Aiogram User Turn composer implementation."""
 
-    @abstractmethod
     async def compose_turn(
         self,
         role: str,
