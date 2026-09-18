@@ -103,12 +103,16 @@ class StateMessage:
         self,
         bot: Bot,
         chat_id: int,
+        message_thread_id: int | None = None,
+        business_connection_id: str | None = None,
         delay: float | None = None,
     ) -> None:
         self._delay = delay or CHAT_ACTION_UPDATE_DELAY
         self._bot = bot
         self._chat_id = chat_id
-        self._message: AiogramMessage | None = None
+        self._message_thread_id = message_thread_id
+        self._business_connection_id = business_connection_id
+        self._origin_state_message: AiogramMessage | None = None
         self._last_update: float | None = None
         self._last_content: str | None = None
 
@@ -121,6 +125,8 @@ class StateMessage:
         return cls(
             bot=message.bot,  # ty: ignore[invalid-argument-type]
             chat_id=message.chat.id,
+            message_thread_id=message.message_thread_id,
+            business_connection_id=message.business_connection_id,
             delay=delay,
         )
 
@@ -160,12 +166,14 @@ class StateMessage:
             if self._last_content == text:
                 return
 
-            if self._message:
-                await self._message.edit_text(text=text)
+            if self._origin_state_message:
+                await self._origin_state_message.edit_text(text=text)
             else:
-                self._message = await self._bot.send_message(
+                self._origin_state_message = await self._bot.send_message(
                     chat_id=self._chat_id,
                     text=text,
+                    message_thread_id=self._message_thread_id,
+                    business_connection_id=self._business_connection_id,
                 )
 
             self._last_content = text
@@ -176,8 +184,8 @@ class StateMessage:
                 break
 
     async def remove(self) -> None:
-        if self._message:
-            await self._message.delete()
+        if self._origin_state_message:
+            await self._origin_state_message.delete()
 
 
 def escape(text: str, chars: str, escape_char: str = "\\") -> str:
