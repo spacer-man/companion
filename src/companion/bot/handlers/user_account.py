@@ -8,6 +8,7 @@ from aiogram.types import Message as AiogramMessage
 
 from companion.bot.aa_view import TelegramifyAgentAnswerView
 from companion.bot.amc import AgentMessageComposerABC
+from companion.bot.config import AgentConfig
 
 log = logging.getLogger(__name__)
 
@@ -21,10 +22,13 @@ async def process_user_account_message(
     amc: AgentMessageComposerABC,
     agent: Agent,
     run_config: RunConfig,
+    config: AgentConfig,
     max_agent_turns: int = 30,
 ) -> None:
-    input_message = await amc.compose(role="user", message=message)
+    if not message.from_user or message.from_user.id not in config.telegram.owner_ids:
+        return
 
+    input_message = await amc.compose(role="user", message=message)
     if not input_message.content:
         raise ValueError("Input message content is empty!")
 
@@ -35,6 +39,5 @@ async def process_user_account_message(
         run_config=run_config,
         session=session_factory(str(message.chat.id)),
     )
-
     answer_view = TelegramifyAgentAnswerView.from_message(message)
     await answer_view.stream_answer(stream)
