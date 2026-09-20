@@ -24,6 +24,8 @@ async def process_user_account_message(
     config: AgentConfig,
     max_agent_turns: int = 30,
 ) -> None:
+    session_id = f"ua:{message.chat.id}"  # 'ua:' - user account's session prefix
+
     if (
         not (msg_text := message.text or message.caption)
         or not msg_text.startswith(config.telegram.call_agent_prefix)
@@ -41,7 +43,7 @@ async def process_user_account_message(
         starting_agent=agent,
         input=input_message.content,
         run_config=run_config,
-        session=session_factory(str(message.chat.id)),
+        session=session_factory(session_id),
     )
     answer_view = TelegramifyAgentAnswerView.from_message(message)
     await answer_view.stream_answer(stream)
