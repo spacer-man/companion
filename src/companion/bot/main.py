@@ -129,6 +129,7 @@ async def run() -> None:
             session_factory=lambda session_id: AsyncSQLiteSession(
                 session_id=session_id, db_path=config.db.db_path
             ),
+            config=config,
         )
 
         for telegram_chat_id in config.telegram.owner_ids:

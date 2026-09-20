@@ -3,7 +3,6 @@ from collections.abc import Callable
 
 from agents import Agent, RunConfig, Runner, SessionABC
 from aiogram import Router
-from aiogram.filters import Command
 from aiogram.types import Message as AiogramMessage
 
 from companion.bot.aa_view import TelegramifyAgentAnswerView
@@ -15,7 +14,7 @@ log = logging.getLogger(__name__)
 router = Router(name="user_account")
 
 
-@router.business_message(Command("help"))
+@router.business_message()
 async def process_user_account_message(
     message: AiogramMessage,
     session_factory: Callable[[str], SessionABC],
@@ -25,7 +24,12 @@ async def process_user_account_message(
     config: AgentConfig,
     max_agent_turns: int = 30,
 ) -> None:
-    if not message.from_user or message.from_user.id not in config.telegram.owner_ids:
+    if (
+        not (msg_text := message.text or message.caption)
+        or not msg_text.startswith(config.telegram.call_agent_prefix)
+        or not message.from_user
+        or message.from_user.id not in config.telegram.owner_ids
+    ):
         return
 
     input_message = await amc.compose(role="user", message=message)

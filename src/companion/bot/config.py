@@ -62,6 +62,7 @@ class PersonalChatConfig(BaseModel):
 
 
 class TelegramConfig(BaseModel):
+    call_agent_prefix: str = "/ai"
     owner_ids: list[Secret[int]]
     bot_token: SecretStr
     bot_proxy_url: SecretStr | None = None
