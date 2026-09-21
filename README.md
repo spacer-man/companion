@@ -1,14 +1,16 @@
 <div align="center">
 
-# Companion
+# 🤝 Companion
 
 Your AI agent, designed to help you stay organized and focused in your everyday conversations.
+
+[![License](https://img.shields.io/github/license/spacer-man/companion)](LICENSE) [![Type Check](https://github.com/spacer-man/companion/actions/workflows/ty.yml/badge.svg)](https://github.com/spacer-man/companion/actions/workflows/ty.yml)
 
 </div>
 
 ---
 
-## Possibilities
+## ✨ Possibilities
 
 **It helps you:**
 
