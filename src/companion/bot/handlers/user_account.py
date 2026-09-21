@@ -8,6 +8,7 @@ from aiogram.types import Message as AiogramMessage
 from companion.bot.aa_view import TelegramifyAgentAnswerView
 from companion.bot.amc import AgentMessageComposerABC
 from companion.bot.config import AgentConfig
+from companion.bot.turns_accumulator import TurnsAccumulator
 
 log = logging.getLogger(__name__)
 
@@ -20,6 +21,7 @@ async def process_user_account_message(
     session_factory: Callable[[str], SessionABC],
     amc: AgentMessageComposerABC,
     agent: Agent,
+    turns_accum: TurnsAccumulator,
     run_config: RunConfig,
     config: AgentConfig,
     max_agent_turns: int = 30,
@@ -35,13 +37,17 @@ async def process_user_account_message(
         return
 
     input_message = await amc.compose(role="user", message=message)
-    if not input_message.content:
-        raise ValueError("Input message content is empty!")
+    turn = await turns_accum.feed_message(message=input_message, session_id=session_id)
+    if not turn:  # If turn was edited then return
+        return
+
+    if not turn.content:
+        raise ValueError("Turn content is empty!")
 
     stream = Runner.run_streamed(
         max_turns=max_agent_turns,
         starting_agent=agent,
-        input=input_message.content,
+        input=turn.content,
         run_config=run_config,
         session=session_factory(session_id),
     )
