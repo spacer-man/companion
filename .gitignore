@@ -12,9 +12,6 @@ wheels/
 # Environment files
 .env
 
-# Secret files
-secrets/
-
 # Data files
 data/
 
