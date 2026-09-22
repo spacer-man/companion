@@ -1,7 +1,7 @@
 [project]
 name = "companion"
 version = "0.8.0"
-description = "Add your description here"
+description = "Personal AI agent for managing knowledge, finding information, and staying focused on important tasks"
 readme = "README.md"
 authors = [
     { name = "spacer", email = "f-balykin@mail.ru" }
